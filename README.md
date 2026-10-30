@@ -29,6 +29,16 @@ bao plugin register \
 bao secrets enable -path=gitea openbao-plugin-gitea
 ```
 
+A `v*` tag publishes linux amd64 and arm64 binaries with `SHA256SUMS` as a
+GitHub release, and the multi-arch image `ghcr.io/uznog/openbao-plugin-gitea`
+for an OpenBao declarative `plugin` stanza:
+
+```hcl
+plugin "secret" "openbao-plugin-gitea" {
+  image = "ghcr.io/uznog/openbao-plugin-gitea:v0.1.0@sha256:<image digest>"
+}
+```
+
 ## Configure
 
 The engine needs the access token of a Gitea site administrator. It uses that
