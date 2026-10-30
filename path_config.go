@@ -97,7 +97,16 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, d *
 	if cfg == nil {
 		cfg = &giteaConfig{TokenPrefix: defaultTokenPrefix}
 	}
-	if v, ok := d.GetOk("base_url"); ok {
+	if v, ok := d.GetOk("base_url"); ok && v.(string) != cfg.BaseURL {
+		// Revocation calls the configured server, so a new server would leave
+		// every token on the old one valid.
+		issued, err := req.Storage.List(ctx, issuedPrefix)
+		if err != nil {
+			return nil, err
+		}
+		if cfg.BaseURL != "" && len(issued) > 0 {
+			return logical.ErrorResponse("base_url cannot change while issued tokens exist; revoke their leases first"), nil
+		}
 		cfg.BaseURL = v.(string)
 	}
 	if v, ok := d.GetOk("token"); ok {

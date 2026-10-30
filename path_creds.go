@@ -117,6 +117,7 @@ func (b *backend) pathCredsRead(ctx context.Context, req *logical.Request, d *fr
 
 func (b *backend) secretTokenRenew(ctx context.Context, req *logical.Request, _ *framework.FieldData) (*logical.Response, error) {
 	roleName, _ := req.Secret.InternalData["role"].(string)
+	name, _ := req.Secret.InternalData["name"].(string)
 	r, err := getRole(ctx, req.Storage, roleName)
 	if err != nil {
 		return nil, err
@@ -124,9 +125,22 @@ func (b *backend) secretTokenRenew(ctx context.Context, req *logical.Request, _ 
 	if r == nil {
 		return nil, fmt.Errorf("role %q no longer exists", roleName)
 	}
+	entry, err := req.Storage.Get(ctx, issuedPrefix+name)
+	if err != nil {
+		return nil, err
+	}
+	if entry == nil {
+		return nil, fmt.Errorf("token %q has no record", name)
+	}
+	var rec issuedToken
+	if err := entry.DecodeJSON(&rec); err != nil {
+		return nil, err
+	}
 	resp := &logical.Response{Secret: req.Secret}
 	resp.Secret.TTL = r.TTL
-	resp.Secret.MaxTTL = r.MaxTTL
+	// Tidy deletes the token at the recorded deadline, so the lease must not
+	// outlive it even when the role maximum grows later.
+	resp.Secret.MaxTTL = rec.ExpireAt.Sub(req.Secret.IssueTime)
 	return resp, nil
 }
 

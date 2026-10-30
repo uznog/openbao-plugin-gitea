@@ -184,6 +184,21 @@ func TestConfigRejectsRelativeURL(t *testing.T) {
 	}
 }
 
+func TestConfigKeepsBaseURLWhileTokensExist(t *testing.T) {
+	_, srv := newFakeGitea(t)
+	b, s := newTestBackend(t, srv.URL)
+	resp := mustRequest(t, b, s, logical.ReadOperation, "creds/writer", nil)
+
+	change := map[string]any{"base_url": "https://other.example.com"}
+	if got, err := request(b, s, logical.UpdateOperation, "config", change); err != nil || !got.IsError() {
+		t.Fatalf("expected an error response, got %v, %v", got, err)
+	}
+	if _, err := secretRequest(b, s, logical.RevokeOperation, resp.Secret); err != nil {
+		t.Fatal(err)
+	}
+	mustRequest(t, b, s, logical.UpdateOperation, "config", change)
+}
+
 func TestRoleRejectsTTLAboveMax(t *testing.T) {
 	b, s := newTestBackend(t, "")
 	resp, err := request(b, s, logical.UpdateOperation, "roles/r", map[string]any{
@@ -251,13 +266,15 @@ func TestRenewExtendsLease(t *testing.T) {
 	_, srv := newFakeGitea(t)
 	b, s := newTestBackend(t, srv.URL)
 	resp := mustRequest(t, b, s, logical.ReadOperation, "creds/writer", nil)
+	resp.Secret.IssueTime = time.Now()
+	mustRequest(t, b, s, logical.UpdateOperation, "roles/writer", map[string]any{"max_ttl": "10h"})
 
 	renewed, err := secretRequest(b, s, logical.RenewOperation, resp.Secret)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if renewed.Secret.TTL != time.Hour || renewed.Secret.MaxTTL != 3*time.Hour {
-		t.Fatalf("unexpected renewed lease: %+v", renewed.Secret.LeaseOptions)
+	if renewed.Secret.TTL != time.Hour || renewed.Secret.MaxTTL > 3*time.Hour || renewed.Secret.MaxTTL < 3*time.Hour-time.Minute {
+		t.Fatalf("renewed lease %+v does not keep the issued 3h maximum", renewed.Secret.LeaseOptions)
 	}
 
 	mustRequest(t, b, s, logical.DeleteOperation, "roles/writer", nil)

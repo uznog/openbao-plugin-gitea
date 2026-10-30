@@ -45,7 +45,7 @@ bao write gitea/config \
 
 | Field          | Description                                                                 |
 |----------------|-----------------------------------------------------------------------------|
-| `base_url`     | Base URL of the Gitea server. Required.                                     |
+| `base_url`     | Base URL of the Gitea server. Required. It cannot change while issued tokens exist. |
 | `token`        | Admin access token. Required. A read of `config` never returns it.          |
 | `ca_cert`      | PEM CA bundle that verifies the Gitea TLS certificate. Empty uses the system roots. |
 | `token_prefix` | Name prefix of issued tokens. Default `openbao`.                            |
