@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/url"
+	"strings"
 
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/logical"
@@ -110,7 +111,7 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, d *
 		cfg.BaseURL = v.(string)
 	}
 	if v, ok := d.GetOk("token"); ok {
-		cfg.Token = v.(string)
+		cfg.Token = strings.TrimSpace(v.(string))
 	}
 	if v, ok := d.GetOk("ca_cert"); ok {
 		cfg.CACert = v.(string)
