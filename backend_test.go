@@ -176,6 +176,24 @@ func TestConfigNeverReturnsToken(t *testing.T) {
 	}
 }
 
+// bao write gitea/config token=- keeps the newline that ends stdin.
+func TestConfigTrimsToken(t *testing.T) {
+	_, srv := newFakeGitea(t)
+	b, s := newTestBackend(t, "")
+	mustRequest(t, b, s, logical.UpdateOperation, "config", map[string]any{
+		"base_url": srv.URL,
+		"token":    testAdminToken + "\n",
+	})
+
+	cfg, err := getConfig(context.Background(), s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Token != testAdminToken {
+		t.Fatalf("token = %q, want %q", cfg.Token, testAdminToken)
+	}
+}
+
 func TestConfigRejectsRelativeURL(t *testing.T) {
 	b, s := newTestBackend(t, "")
 	resp, err := request(b, s, logical.UpdateOperation, "config", map[string]any{"base_url": "gitea", "token": "x"})
